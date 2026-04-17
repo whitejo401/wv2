@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello WebView2</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            color: #fff;
+            overflow: hidden;
+        }
+        .container { text-align: center; animation: fadeInUp 1s ease-out; }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .logo {
+            width: 120px; height: 120px;
+            margin: 0 auto 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 28px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 3rem;
+            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.4);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 20px 60px rgba(102,126,234,0.4); }
+            50%      { transform: scale(1.05); box-shadow: 0 25px 70px rgba(102,126,234,0.6); }
+        }
+        h1 {
+            font-size: 3rem; font-weight: 700; margin-bottom: 1rem;
+            background: linear-gradient(to right, #667eea, #764ba2, #f093fb);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle { font-size: 1.2rem; color: rgba(255,255,255,0.7); margin-bottom: 2rem; line-height: 1.6; }
+        .info-card {
+            background: rgba(255,255,255,0.08); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.12); border-radius: 16px;
+            padding: 2rem; max-width: 500px; margin: 0 auto 2rem; text-align: left;
+        }
+        .info-card h3 { font-size: 1rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 1rem; }
+        .info-row { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: rgba(255,255,255,0.6); }
+        .info-value { color: #667eea; font-weight: 600; }
+        .btn {
+            display: inline-block; padding: 14px 36px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff; border: none; border-radius: 12px;
+            font-size: 1rem; font-weight: 600; cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.3);
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(102,126,234,0.5); }
+        .footer { position: fixed; bottom: 2rem; color: rgba(255,255,255,0.3); font-size: 0.85rem; }
+        .particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }
+        .particle { position: absolute; width: 6px; height: 6px; background: rgba(102,126,234,0.3); border-radius: 50%; animation: float linear infinite; }
+        @keyframes float {
+            0%   { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10%  { opacity: 1; } 90% { opacity: 1; }
+            100% { transform: translateY(-10vh) rotate(720deg); opacity: 0; }
+        }
+        #counter { color: #f093fb; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    <div class="container">
+        <div class="logo">&#127760;</div>
+        <h1>Hello, WebView2!</h1>
+        <p class="subtitle">MFC Dialog + WebView2 Hybrid App<br><strong>CWebView2Host</strong> 로컬 에셋 매핑 적용</p>
+        <div class="info-card">
+            <h3>Tech Stack</h3>
+            <div class="info-row"><span class="info-label">Host App</span><span class="info-value">MFC (CDialogEx)</span></div>
+            <div class="info-row"><span class="info-label">Component</span><span class="info-value">CWebView2Host</span></div>
+            <div class="info-row"><span class="info-label">WebView</span><span class="info-value">Microsoft Edge WebView2</span></div>
+            <div class="info-row"><span class="info-label">Rendering</span><span class="info-value">app.local (Virtual Host)</span></div>
+            <div class="info-row"><span class="info-label">Button Clicks</span><span class="info-value" id="counter">0</span></div>
+        </div>
+        <button class="btn" onclick="countUp()">&#128640; Click Me!</button>
+    </div>
+    <div class="footer">Built with MFC + CWebView2Host + Microsoft WebView2 SDK</div>
+    <script>
+        const particlesEl = document.getElementById('particles');
+        for (let i = 0; i < 30; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.width = p.style.height = (Math.random() * 6 + 2) + 'px';
+            p.style.animationDuration = (Math.random() * 10 + 8) + 's';
+            p.style.animationDelay = (Math.random() * 10) + 's';
+            particlesEl.appendChild(p);
+        }
+        let count = 0;
+        function countUp() {
+            count++;
+            document.getElementById('counter').textContent = count;
+            if (window.chrome && window.chrome.webview)
+                window.chrome.webview.postMessage('Button clicked: ' + count);
+        }
+    </script>
+</body>
+</html>

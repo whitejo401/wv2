@@ -1,0 +1,20 @@
+# Build folders
+build/
+bin/
+obj/
+*.aps
+
+# Visual Studio files
+.vs/
+*.user
+
+# Logs
+log/
+*.log
+
+# Windows specific
+thumbs.db
+
+# NuGet packages
+packages/
+*.nupkg

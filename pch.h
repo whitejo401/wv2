@@ -1,0 +1,32 @@
+// ============================================================================
+// pch.h - Precompiled Header for MFC + WebView2
+// ============================================================================
+#pragma once
+
+#ifndef VC_EXTRALEAN
+#define VC_EXTRALEAN    // Exclude rarely-used stuff from Windows headers
+#endif
+
+#include "targetver.h"
+
+// MFC core headers
+#define _ATL_CSTRING_EXPLICIT_CONSTRUCTORS
+#define _AFX_ALL_WARNINGS
+
+#include <afxwin.h>         // MFC core and standard
+#include <afxext.h>         // MFC extensions
+#include <afxdisp.h>        // MFC OLE automation (AfxOleInit)
+#include <afxdialogex.h>    // MFC Dialog Ex
+
+// C++ standard
+#include <string>
+
+// Shell API (SHGetFolderPath)
+#include <ShlObj.h>
+
+// COM / WRL
+#include <wrl.h>
+#include <wil/com.h>
+
+// WebView2
+#include "WebView2.h"
