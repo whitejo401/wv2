@@ -17,9 +17,7 @@
 #include <afxext.h>         // MFC extensions
 #include <afxdisp.h>        // MFC OLE automation (AfxOleInit)
 #include <afxdialogex.h>    // MFC Dialog Ex
-
-// C++ standard
-#include <string>
+#include <afxmt.h>          // CCriticalSection, CSingleLock
 
 // Shell API (SHGetFolderPath)
 #include <ShlObj.h>

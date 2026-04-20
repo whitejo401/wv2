@@ -1,10 +1,12 @@
 // ============================================================================
 // WebView2Dlg.cpp
 //
-// [아키텍처: C++ Push 방식]
-//   - Worker Thread: m_nRatePerSec 속도에 맞춰 JSON 행을 m_dataQueue에 push
-//   - UI Thread (OnTimer): 16ms마다 큐 전체를 drain → 배치 JSON → ExecuteScript
-//   - JS는 요청(Pull) 없이 순수하게 수신/렌더링만 담당
+// [아키텍처: C++ Push 방식 / MFC 전용 구현]
+//   - Worker Thread: AfxBeginThread + CWinThread
+//   - 원자적 연산:   InterlockedExchange / InterlockedIncrement (volatile LONG)
+//   - 동기화:        CCriticalSection + CSingleLock
+//   - 큐:           CStringList
+//   - UI 전송:       SetTimer(16ms) → OnTimer에서 배치 drain → ExecuteScript
 //
 // 메시지 프로토콜 (JS → C++):
 //   STREAM_START:{rate}  → 워커 스레드 (재)시작, rate=-1은 Chaos
@@ -14,9 +16,6 @@
 #include "pch.h"
 #include "WebView2App.h"
 #include "WebView2Dlg.h"
-
-#include <chrono>
-#include <random>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -36,6 +35,7 @@ END_MESSAGE_MAP()
 CWebView2Dlg::CWebView2Dlg(CWnd* pParent /*=nullptr*/)
     : CDialogEx(IDD_MAIN_DIALOG, pParent)
 {
+    srand(static_cast<UINT>(::GetTickCount64()));
 }
 
 void CWebView2Dlg::DoDataExchange(CDataExchange* pDX)
@@ -58,7 +58,7 @@ BOOL CWebView2Dlg::OnInitDialog()
     GetClientRect(&rcClient);
     m_wv2.Create(rcClient, this, 10001);
     m_wv2.SetOnWebMessageReceivedCallback([this](const std::wstring& msg) {
-        OnWebMessage(msg);
+        OnWebMessage(CString(msg.c_str()));
     });
 
     PostMessage(WM_INIT_WEBVIEW2);
@@ -78,22 +78,22 @@ LRESULT CWebView2Dlg::OnInitWebView2(WPARAM, LPARAM)
 // ============================================================================
 // OnWebMessage - 웹→호스트 메시지 수신
 // ============================================================================
-void CWebView2Dlg::OnWebMessage(const std::wstring& message)
+void CWebView2Dlg::OnWebMessage(const CString& message)
 {
-    if (message.rfind(L"STREAM_START:", 0) == 0)
+    if (message.Find(_T("STREAM_START:")) == 0)
     {
-        int rate = _wtoi(message.c_str() + wcslen(L"STREAM_START:"));
+        int rate = _ttoi(message.Mid((int)_tcslen(_T("STREAM_START:"))));
         StopDataWorker();
         StartDataWorker(rate);
     }
-    else if (message == L"STREAM_STOP")
+    else if (message == _T("STREAM_STOP"))
     {
         StopDataWorker();
     }
-    else if (message.rfind(L"STREAM_RATE:", 0) == 0)
+    else if (message.Find(_T("STREAM_RATE:")) == 0)
     {
-        int rate = _wtoi(message.c_str() + wcslen(L"STREAM_RATE:"));
-        m_nRatePerSec.store(rate);
+        LONG rate = (LONG)_ttoi(message.Mid((int)_tcslen(_T("STREAM_RATE:"))));
+        InterlockedExchange(&m_nRatePerSec, rate);
     }
 }
 
@@ -102,25 +102,47 @@ void CWebView2Dlg::OnWebMessage(const std::wstring& message)
 // ============================================================================
 void CWebView2Dlg::StartDataWorker(int ratePerSec)
 {
-    m_nRatePerSec.store(ratePerSec);
-    m_bRunWorker.store(true);
-    m_workerThread = std::thread([this]() { WorkerProc(); });
+    InterlockedExchange(&m_nRatePerSec, (LONG)ratePerSec);
+    InterlockedExchange((volatile LONG*)&m_bRunWorker, TRUE);
+
+    // m_bAutoDelete = FALSE: 스레드 핸들을 직접 관리하여 종료 대기 가능
+    m_pWorkerThread = AfxBeginThread(StaticWorkerProc, this,
+                                     THREAD_PRIORITY_NORMAL, 0,
+                                     CREATE_SUSPENDED);
+    m_pWorkerThread->m_bAutoDelete = FALSE;
+    m_pWorkerThread->ResumeThread();
+
     SetTimer(BATCH_TIMER_ID, BATCH_TIMER_MS, nullptr);
 }
 
 void CWebView2Dlg::StopDataWorker()
 {
-    if (!m_bRunWorker.load()) return;
+    if (!m_bRunWorker) return;
 
-    m_bRunWorker.store(false);
-    if (m_workerThread.joinable())
-        m_workerThread.join();
+    InterlockedExchange((volatile LONG*)&m_bRunWorker, FALSE);
+
+    if (m_pWorkerThread != nullptr)
+    {
+        // 스레드가 자연 종료될 때까지 대기 (최대 3초)
+        ::WaitForSingleObject(m_pWorkerThread->m_hThread, 3000);
+        delete m_pWorkerThread;
+        m_pWorkerThread = nullptr;
+    }
 
     KillTimer(BATCH_TIMER_ID);
 
-    std::lock_guard<std::mutex> lock(m_queueMutex);
-    while (!m_dataQueue.empty())
-        m_dataQueue.pop();
+    // 잔여 큐 비우기
+    CSingleLock lock(&m_csQueue, TRUE);
+    m_dataQueue.RemoveAll();
+}
+
+// ============================================================================
+// StaticWorkerProc - AfxBeginThread 진입점 (정적 함수)
+// ============================================================================
+UINT AFX_CDECL CWebView2Dlg::StaticWorkerProc(LPVOID pParam)
+{
+    reinterpret_cast<CWebView2Dlg*>(pParam)->WorkerProc();
+    return 0;
 }
 
 // ============================================================================
@@ -129,49 +151,50 @@ void CWebView2Dlg::StopDataWorker()
 // ============================================================================
 void CWebView2Dlg::WorkerProc()
 {
-    std::mt19937 rng(std::random_device{}());
-    std::uniform_int_distribution<int> chaosDist(10, 1000);
-
-    while (m_bRunWorker.load())
+    while (m_bRunWorker)
     {
-        int rate = m_nRatePerSec.load();
+        LONG rate = m_nRatePerSec;
+
+        // Chaos 모드: 10~1000건/초 랜덤
         if (rate == -1)
-            rate = chaosDist(rng);
+            rate = 10 + rand() % 991;
 
-        int sleepMs = max(1, 1000 / rate);
+        // 건당 대기 시간 (최소 1ms)
+        DWORD sleepMs = (DWORD)max(1L, 1000L / rate);
 
-        int id = ++m_nDataCount;
+        LONG id = InterlockedIncrement(&m_nDataCount);
+
         {
-            std::lock_guard<std::mutex> lock(m_queueMutex);
-            m_dataQueue.push(GenerateRow(id));
+            CSingleLock lock(&m_csQueue, TRUE);
+            m_dataQueue.AddTail(GenerateRow(id));
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+        ::Sleep(sleepMs);
     }
 }
 
 // ============================================================================
-// GenerateRow - 단일 JSON 객체 문자열 생성
+// GenerateRow - 단일 JSON 객체 CString 생성
 // ============================================================================
-std::wstring CWebView2Dlg::GenerateRow(int id)
+CString CWebView2Dlg::GenerateRow(LONG id)
 {
-    static const wchar_t* colors[] = {
-        L"red", L"blue", L"green", L"orange", L"purple",
-        L"cyan", L"magenta", L"yellow", L"white", L"coral"
+    static const TCHAR* colors[] = {
+        _T("red"), _T("blue"), _T("green"), _T("orange"), _T("purple"),
+        _T("cyan"), _T("magenta"), _T("yellow"), _T("white"), _T("coral")
     };
-    static const wchar_t* genders[] = { L"male", L"female" };
+    static const TCHAR* genders[] = { _T("male"), _T("female") };
 
-    wchar_t buf[256];
-    swprintf_s(buf, _countof(buf),
-        L"{\"id\":%d,\"name\":\"Stream User %d\","
-        L"\"age\":%d,\"gender\":\"%s\","
-        L"\"height\":%.2f,\"col\":\"%s\","
-        L"\"dob\":\"2024-01-01\"}",
+    CString row;
+    row.Format(
+        _T("{\"id\":%d,\"name\":\"Stream User %d\",")
+        _T("\"age\":%d,\"gender\":\"%s\",")
+        _T("\"height\":%.2f,\"col\":\"%s\",")
+        _T("\"dob\":\"2024-01-01\"}"),
         id, id,
         20 + (id % 60), genders[id % 2],
         1.5 + (id % 50) * 0.01, colors[id % 10]);
 
-    return std::wstring(buf);
+    return row;
 }
 
 // ============================================================================
@@ -181,25 +204,28 @@ void CWebView2Dlg::OnTimer(UINT_PTR nIDEvent)
 {
     if (nIDEvent == BATCH_TIMER_ID)
     {
-        std::queue<std::wstring> batch;
+        CStringList batch;
         {
-            std::lock_guard<std::mutex> lock(m_queueMutex);
-            std::swap(batch, m_dataQueue); // O(1) swap으로 락 시간 최소화
+            // O(1) 이동으로 락 시간 최소화
+            CSingleLock lock(&m_csQueue, TRUE);
+            batch.AddTail(&m_dataQueue);
+            m_dataQueue.RemoveAll();
         }
 
-        if (!batch.empty())
+        if (!batch.IsEmpty())
         {
-            std::wstring json = L"[";
-            bool first = true;
-            while (!batch.empty())
+            CString json = _T("[");
+            BOOL bFirst = TRUE;
+            while (!batch.IsEmpty())
             {
-                if (!first) json += L",";
-                json += batch.front();
-                batch.pop();
-                first = false;
+                if (!bFirst) json += _T(",");
+                json += batch.RemoveHead();
+                bFirst = FALSE;
             }
-            json += L"]";
-            m_wv2.ExecuteScript((L"window.appendGridData(" + json + L");").c_str());
+            json += _T("]");
+
+            CString script = _T("window.appendGridData(") + json + _T(");");
+            m_wv2.ExecuteScript(script.GetString());
         }
         return;
     }

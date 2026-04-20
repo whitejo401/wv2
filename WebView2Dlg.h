@@ -3,11 +3,6 @@
 #include "resource.h"
 #include "WebView2.h"
 
-#include <thread>
-#include <atomic>
-#include <mutex>
-#include <queue>
-
 // Custom message for deferred WebView2 initialization
 #define WM_INIT_WEBVIEW2 (WM_USER + 100)
 
@@ -35,7 +30,7 @@ protected:
     virtual void OnOK() override;
     virtual void PostNcDestroy() override;
 
-    void OnWebMessage(const std::wstring& message);
+    void OnWebMessage(const CString& message);
 
     DECLARE_MESSAGE_MAP()
 
@@ -43,22 +38,25 @@ private:
     CWebView2 m_wv2;
 
     // ── Worker Thread (데이터 생성 전담) ────────────────────────────────────
-    std::thread              m_workerThread;
-    std::atomic<bool>        m_bRunWorker  { false };
-    std::atomic<int>         m_nRatePerSec { 50 };    // -1 = Chaos 모드
-    std::atomic<int>         m_nDataCount  { 0 };     // 총 생성 행 수 (ID 채번)
+    CWinThread*    m_pWorkerThread { nullptr };
+    volatile BOOL  m_bRunWorker    { FALSE };
+    volatile LONG  m_nRatePerSec   { 50 };      // -1 = Chaos 모드
+    volatile LONG  m_nDataCount    { 0 };        // 총 생성 행 수 (ID 채번)
 
     // ── UI Thread 전송용 큐 ─────────────────────────────────────────────────
-    std::mutex               m_queueMutex;
-    std::queue<std::wstring> m_dataQueue;
+    CCriticalSection m_csQueue;
+    CStringList      m_dataQueue;
 
     // ── Timer ───────────────────────────────────────────────────────────────
     static constexpr UINT_PTR BATCH_TIMER_ID = 1;
     static constexpr UINT     BATCH_TIMER_MS = 16; // ~60fps
 
     // ── 메서드 ──────────────────────────────────────────────────────────────
-    void         StartDataWorker(int ratePerSec);
-    void         StopDataWorker();
-    void         WorkerProc();
-    std::wstring GenerateRow(int id);
+    void    StartDataWorker(int ratePerSec);
+    void    StopDataWorker();
+    CString GenerateRow(LONG id);
+
+    // AfxBeginThread 용 정적 진입점
+    static UINT AFX_CDECL StaticWorkerProc(LPVOID pParam);
+    void WorkerProc();
 };
