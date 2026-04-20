@@ -28,7 +28,7 @@
         
         .header {
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
             animation: fadeInUp 0.8s ease-out;
         }
 
@@ -38,17 +38,16 @@
         }
 
         h1 {
-            font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem;
+            font-size: 2.2rem; font-weight: 700; margin-bottom: 0.3rem;
             background: linear-gradient(to right, #667eea, #764ba2, #f093fb);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
         .subtitle {
-            font-size: 1rem; color: rgba(255,255,255,0.7);
+            font-size: 0.95rem; color: rgba(255,255,255,0.7);
         }
 
-        /* Container for the UI elements */
         .wrapper {
             width: 100%;
             max-width: 1600px;
@@ -65,44 +64,144 @@
             margin-bottom: 20px;
         }
 
-        .grids-wrapper {
-            display: flex;
-            gap: 20px;
-            width: 100%;
-        }
-
-        .grid-box {
-            flex: 1;
+        /* ── Load Control Panel ─────────────────────────────────────── */
+        .load-panel {
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 16px;
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
 
-        .grid-title {
-            font-size: 1.2rem;
-            text-align: center;
-            font-weight: 600;
-            color: #fff;
-            background: rgba(0,0,0,0.2);
-            padding: 8px;
-            border-radius: 6px;
+        .load-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
+        .load-label {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.6);
+            white-space: nowrap;
+            min-width: 60px;
+        }
+
+        /* 프리셋 버튼 */
+        .preset-btn {
+            padding: 6px 14px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+        .preset-btn:hover { background: rgba(255,255,255,0.18); transform: translateY(-1px); }
+        .preset-btn.active {
+            border-color: #667eea;
+            background: rgba(102,126,234,0.3);
+            box-shadow: 0 0 10px rgba(102,126,234,0.4);
+        }
+
+        /* 슬라이더 */
+        .rate-slider {
+            flex: 1;
+            min-width: 160px;
+            -webkit-appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            outline: none;
+            cursor: pointer;
+        }
+        .rate-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 0 6px rgba(102,126,234,0.8);
+            cursor: pointer;
+            transition: box-shadow 0.15s;
+        }
+        .rate-slider::-webkit-slider-thumb:hover {
+            box-shadow: 0 0 12px rgba(102,126,234,1);
+        }
+
+        .rate-display {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #a78bfa;
+            min-width: 120px;
+            white-space: nowrap;
+        }
+
+        /* 상태 뱃지 */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.15);
+            transition: all 0.3s;
+        }
+        .status-badge.running {
+            border-color: #00b09b;
+            color: #00e5cc;
+            background: rgba(0,176,155,0.15);
+        }
+        .status-badge.stopped {
+            border-color: rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.5);
+        }
+        .status-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        .status-badge.running .status-dot {
+            animation: pulse 1s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%,100% { opacity: 1; }
+            50%      { opacity: 0.3; }
+        }
+
+        /* 카운터 */
+        .counter-box {
+            font-size: 0.82rem;
+            color: rgba(255,255,255,0.55);
+        }
+        .counter-box span {
+            font-weight: 700;
+            color: #f9a8d4;
+        }
+
+        /* 툴바 액션 버튼 */
         .toolbar {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 15px;
+            align-items: center;
+            margin-bottom: 6px;
         }
 
-        /* ... existing buttons ... */
         .btn {
-            display: inline-block; padding: 10px 20px;
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 9px 18px;
             background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
             color: #fff; border: none; border-radius: 8px;
-            font-size: 0.95rem; font-weight: 600; cursor: pointer;
+            font-size: 0.9rem; font-weight: 600; cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: 0 4px 15px rgba(0, 176, 155, 0.3);
-            display: flex; align-items: center; gap: 8px;
         }
         .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 176, 155, 0.5); }
         .btn:active { transform: translateY(0); }
@@ -119,27 +218,37 @@
         }
         .btn-danger:hover { box-shadow: 0 6px 20px rgba(245, 87, 108, 0.5); }
 
-        .select-box {
-            padding: 10px 12px;
-            background: rgba(0,0,0,0.3);
-            color: #fff;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 8px;
-            font-size: 0.95rem;
-            outline: none;
-            cursor: pointer;
-        }
-        .select-box option {
-            background: #24243e;
-            color: #fff;
+        .btn-group { display: flex; gap: 8px; }
+
+        /* ── Grids ─────────────────────────────────────────────────── */
+        .grids-wrapper {
+            display: flex;
+            gap: 20px;
+            width: 100%;
         }
 
-        /* The grids */
+        .grid-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .grid-title {
+            font-size: 1.1rem;
+            text-align: center;
+            font-weight: 600;
+            color: #fff;
+            background: rgba(0,0,0,0.2);
+            padding: 7px;
+            border-radius: 6px;
+        }
+
         #example-table {
             border-radius: 8px;
             overflow: hidden;
             border: none;
-            height: 360px; /* 헤더 + 약 9개 행 높이 (나머지는 스크롤) */
+            height: 360px; /* ~9행 */
         }
         #myGrid {
             border-radius: 8px;
@@ -153,245 +262,286 @@
 
     <div class="header">
         <h1>WebView2 Grid Integration</h1>
-        <p class="subtitle">Powered by Tabulator & SheetJS (Excel Export)</p>
+        <p class="subtitle">Powered by C++ Worker Thread → Tabulator &amp; AG Grid</p>
     </div>
 
     <div class="wrapper">
         <div class="grid-container">
+
+            <!-- ── Load Control Panel ─────────────────────────────── -->
+            <div class="load-panel">
+
+                <!-- Row 1: 프리셋 버튼 -->
+                <div class="load-row">
+                    <span class="load-label">부하 레벨</span>
+                    <button class="preset-btn" data-rate="10"   id="preset-low">🟢 Low (10/s)</button>
+                    <button class="preset-btn active" data-rate="50"   id="preset-med">🟡 Medium (50/s)</button>
+                    <button class="preset-btn" data-rate="200"  id="preset-high">🟠 High (200/s)</button>
+                    <button class="preset-btn" data-rate="500"  id="preset-burst">🔴 Burst (500/s)</button>
+                    <button class="preset-btn" data-rate="-1"   id="preset-chaos">🌪️ Chaos (랜덤)</button>
+                </div>
+
+                <!-- Row 2: 슬라이더 + 표시 -->
+                <div class="load-row">
+                    <span class="load-label">직접 조절</span>
+                    <input type="range" id="rate-slider" class="rate-slider"
+                           min="1" max="2000" value="50">
+                    <span class="rate-display" id="rate-display">50 건/초</span>
+
+                    <!-- 상태 뱃지 -->
+                    <div class="status-badge stopped" id="status-badge">
+                        <div class="status-dot"></div>
+                        <span id="status-text">대기 중</span>
+                    </div>
+
+                    <!-- 카운터 -->
+                    <div class="counter-box">
+                        총 수신: <span id="recv-count">0</span> 건
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ── Toolbar: Start / Stop / Excel ──────────────────── -->
             <div class="toolbar">
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <select id="add-mode" class="select-box">
-                        <option value="append">⬇️ Append (하단에 붙이기)</option>
-                        <option value="insert">⬆️ Insert (상단에 밀어넣기)</option>
-                    </select>
-                    <button class="btn btn-blue" id="add-row-btn">➕ Add</button>
-                    <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.2); margin: 0 5px;"></div>
-                    <span style="font-size:0.9rem; color:rgba(255,255,255,0.8);">🚀 Stream:</span>
-                    <input type="number" id="stream-count" class="select-box" style="width: 70px; padding: 8px;" value="10" min="1">
-                    <span style="font-size:0.9rem; color:rgba(255,255,255,0.8);">/ sec</span>
-                    <button class="btn btn-blue" id="stream-toggle-btn">▶️ Start</button>
+                <div class="btn-group">
+                    <button class="btn btn-blue" id="start-btn">▶️ Start</button>
+                    <button class="btn btn-danger" id="stop-btn" disabled style="opacity:0.5;cursor:default;">■ Stop</button>
                 </div>
                 <button class="btn" id="download-xlsx">📊 Download Excel</button>
             </div>
-            
+
+            <!-- ── Grids ──────────────────────────────────────────── -->
             <div class="grids-wrapper">
-                <!-- Tabulator Grid -->
                 <div class="grid-box">
                     <div class="grid-title">Tabulator V5</div>
                     <div id="example-table"></div>
                 </div>
-
-                <!-- AG Grid -->
                 <div class="grid-box">
                     <div class="grid-title">AG Grid</div>
                     <div id="myGrid" class="ag-theme-alpine-dark"></div>
                 </div>
             </div>
+
         </div>
     </div>
 
-    <!-- SheetJS (Excel Export Library) -->
+    <!-- SheetJS -->
     <script src="https://oss.sheetjs.com/sheetjs/xlsx.full.min.js"></script>
-    
-    <!-- Tabulator JS -->
+    <!-- Tabulator -->
     <script src="https://unpkg.com/tabulator-tables/dist/js/tabulator.min.js"></script>
-
-    <!-- AG Grid JS -->
+    <!-- AG Grid -->
     <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
 
     <script>
-        // 샘플 데이터
-        var tableData = [
-            { id: 1, name: "Billy Bob", age: 12, gender: "male", height: 1.4, col: "red", dob: "2010-01-20" },
-            { id: 2, name: "Mary May", age: 1, gender: "female", height: 1.1, col: "blue", dob: "2021-05-14" },
-            { id: 3, name: "Christine Lobowski", age: 42, height: 1.6, col: "green", dob: "1980-05-22" },
-            { id: 4, name: "Brendon Philips", age: 125, gender: "male", height: 1.9, col: "orange", dob: "1897-08-01" },
-            { id: 5, name: "Margret Marmajuke", age: 16, gender: "female", height: 1.0, col: "yellow", dob: "2006-01-31" },
-            { id: 6, name: "Frank Sinatra", age: 82, gender: "male", height: 1.7, col: "blue", dob: "1915-12-12" },
-            { id: 7, name: "Steve Jobs", age: 56, gender: "male", height: 1.88, col: "black", dob: "1955-02-24" }
-        ];
+    // ═══════════════════════════════════════════════════════════════
+    // 초기 샘플 데이터
+    // ═══════════════════════════════════════════════════════════════
+    var tableData = [
+        { id: 1, name: "Billy Bob",          age: 12,  gender: "male",   height: 1.40, col: "red",    dob: "2010-01-20" },
+        { id: 2, name: "Mary May",           age: 1,   gender: "female", height: 1.10, col: "blue",   dob: "2021-05-14" },
+        { id: 3, name: "Christine Lobowski", age: 42,  gender: "female", height: 1.60, col: "green",  dob: "1980-05-22" },
+        { id: 4, name: "Brendon Philips",    age: 125, gender: "male",   height: 1.90, col: "orange", dob: "1897-08-01" },
+        { id: 5, name: "Margret Marmajuke",  age: 16,  gender: "female", height: 1.00, col: "yellow", dob: "2006-01-31" },
+        { id: 6, name: "Frank Sinatra",      age: 82,  gender: "male",   height: 1.70, col: "blue",   dob: "1915-12-12" },
+        { id: 7, name: "Steve Jobs",         age: 56,  gender: "male",   height: 1.88, col: "black",  dob: "1955-02-24" }
+    ];
 
-        // Tabulator 그리드 객체 생성
-        var table = new Tabulator("#example-table", {
-            data: [...tableData],      // 로드할 데이터 (독립성 유지 위해 복사본)
-            height: 360,               // 딱 9개 행 크기로 고정 (나머지는 가상 스크롤)
-            layout:"fitColumns",       // 칼럼 너비 자동 맞춤
-            responsiveLayout:"hide",   // 좁아질 때 넘치는 칼럼 숨김
-            history:false,             // 성능 개선
-            movableColumns: true,      // 칼럼 이동 가능
-            columns:[                  // 칼럼 정의
-                {title:"ID", field:"id", width:70, hozAlign:"center"},
-                {title:"Name", field:"name", width:200, editor:"input"}, // 에디터 활성화 (더블클릭/클릭시 편집가능)
-                {title:"Age", field:"age", hozAlign:"left", formatter:"progress", editor:"number"},
-                {title:"Gender", field:"gender", editor:"list", editorParams:{values:{"male":"Male", "female":"Female", "unknown":"Unknown"}}},
-                {title:"Height", field:"height", hozAlign:"center", editor:"number"},
-                {title:"Color", field:"col", editor:"input"},
-                {title:"Date Of Birth", field:"dob", hozAlign:"center", editor:"date"}
-            ],
-        });
+    // ═══════════════════════════════════════════════════════════════
+    // Tabulator
+    // ═══════════════════════════════════════════════════════════════
+    var table = new Tabulator("#example-table", {
+        data: [...tableData],
+        height: 360,
+        layout: "fitColumns",
+        responsiveLayout: "hide",
+        history: false,
+        movableColumns: true,
+        columns: [
+            { title: "ID",     field: "id",     width: 70,  hozAlign: "center" },
+            { title: "Name",   field: "name",   width: 180, editor: "input" },
+            { title: "Age",    field: "age",    hozAlign: "left", formatter: "progress", editor: "number" },
+            { title: "Gender", field: "gender", editor: "list",
+              editorParams: { values: { "male": "Male", "female": "Female" } } },
+            { title: "Height", field: "height", hozAlign: "center", editor: "number" },
+            { title: "Color",  field: "col",    editor: "input" },
+            { title: "DOB",    field: "dob",    hozAlign: "center", editor: "date" }
+        ],
+    });
 
-        // ----------------------------------------------------
-        // AG Grid 초기화 설정
-        // ----------------------------------------------------
-        var agColumnDefs = [
-            { headerName: "ID", field: "id", width: 70 },
-            { headerName: "Name", field: "name", width: 200 },
-            { headerName: "Age", field: "age", width: 120 },
-            { headerName: "Gender", field: "gender", width: 100 },
-            { headerName: "Height", field: "height", width: 100 },
-            { headerName: "Color", field: "col", width: 100 },
-            { headerName: "Date Of Birth", field: "dob", width: 150 }
-        ];
+    // ═══════════════════════════════════════════════════════════════
+    // AG Grid
+    // ═══════════════════════════════════════════════════════════════
+    var agColumnDefs = [
+        { headerName: "ID",     field: "id",     width: 70 },
+        { headerName: "Name",   field: "name",   width: 180 },
+        { headerName: "Age",    field: "age",    width: 80 },
+        { headerName: "Gender", field: "gender", width: 90 },
+        { headerName: "Height", field: "height", width: 90 },
+        { headerName: "Color",  field: "col",    width: 90 },
+        { headerName: "DOB",    field: "dob",    width: 130 }
+    ];
+    var agGridOptions = {
+        theme: "legacy",
+        columnDefs: agColumnDefs,
+        rowData: [...tableData],
+        defaultColDef: { resizable: true, sortable: true },
+        asyncTransactionWaitMillis: 50,
+        animateRows: false
+    };
+    var agGridElement = document.querySelector('#myGrid');
+    var gridApi = agGrid.createGrid(agGridElement, agGridOptions);
 
-        var agGridOptions = {
-            theme: "legacy", // V33+ 부터 CSS 파일 테마 사용시 'legacy' 선언 필수
-            columnDefs: agColumnDefs,
-            rowData: [...tableData],
-            defaultColDef: {
-                resizable: true,
-                sortable: true
-            },
-            // 트랜잭션 등 벌크 업데이트 허용
-            asyncTransactionWaitMillis: 50,
-            animateRows: false // 대용량 스트리밍시 애니메이션 안함
-        };
+    // ═══════════════════════════════════════════════════════════════
+    // C++ → JS API:  window.loadGridData / window.appendGridData
+    // ═══════════════════════════════════════════════════════════════
+    var totalRecv = 0;
 
-        var agGridElement = document.querySelector('#myGrid');
-        // 최신 버전의 AG Grid(v31+)에 맞추어 createGrid 함수를 사용합니다.
-        var gridApi = agGrid.createGrid(agGridElement, agGridOptions);
+    window.loadGridData = function(jsonData) {
+        table.setData(jsonData);
+        gridApi.setGridOption('rowData', jsonData);
+        totalRecv = jsonData.length;
+        document.getElementById("recv-count").textContent = totalRecv;
+    };
 
-        // C++ -> JS 연동 (ExecuteScript 전용 전역 함수)
-        window.loadGridData = function(jsonData) {
-            table.setData(jsonData);
-            
-            // AG Grid 초기화
-            gridApi.setGridOption('rowData', jsonData);
-        };
+    var isRendering = false;
 
-        var isRendering = false; // 실시간 렌더링 프레임 제어
+    window.appendGridData = function(jsonData) {
+        try {
+            // ★ Tabulator: Append 모드 고정 (하단에 쌓임)
+            table.addData(jsonData, false).catch(function(){});
 
-        window.appendGridData = function(jsonData) {
-            try {
-                var mode = document.getElementById("add-mode").value;
-                
-                // --- Tabulator 데이터 삽입 ---
-                var p = (mode === "insert") ? 
-                        table.addData(jsonData.slice().reverse(), true) : 
-                        table.addData(jsonData, false);
-                p.catch(function(){}); 
+            // ★ AG Grid: 트랜잭션 방식 append
+            gridApi.applyTransaction({ add: jsonData });
 
-                // --- AG Grid 데이터 삽입 (트랜잭션 방식) ---
-                if (mode === "insert") {
-                    gridApi.applyTransaction({ add: jsonData.slice().reverse(), addIndex: 0 });
-                } else {
-                    gridApi.applyTransaction({ add: jsonData });
-                }
+            // 총 수신 카운터
+            totalRecv += jsonData.length;
+            document.getElementById("recv-count").textContent = totalRecv.toLocaleString();
 
-                // 폭포수 스크롤 (두 그리드 모두 적용)
-                if (!isRendering) {
-                    isRendering = true;
-                    requestAnimationFrame(function() {
-                        // 1. Tabulator
-                        try { table.redraw(true); } catch(e) {}
-                        try {
-                            var tabRows = table.getRows();
-                            if (tabRows.length > 0) {
-                                var targetRow = (mode === "insert") ? tabRows[0] : tabRows[tabRows.length - 1];
-                                table.scrollToRow(targetRow, (mode === "insert" ? "top" : "bottom"), false);
-                            }
-                        } catch(e) {}
-                        
-                        // 2. AG Grid 스크롤 이동
-                        try {
-                            if (mode === "insert") {
-                                gridApi.ensureIndexVisible(0, 'top');
-                            } else {
-                                var lastIndex = gridApi.getDisplayedRowCount() - 1;
-                                gridApi.ensureIndexVisible(lastIndex, 'bottom');
-                            }
-                        } catch(e) {}
-                        
-                        isRendering = false; // 다음 프레임 허용
-                    });
-                }
-            } catch(e) {
-                console.error("appendGridData error:", e);
+            // 스크롤 (60fps 프레임 제어)
+            if (!isRendering) {
+                isRendering = true;
+                requestAnimationFrame(function() {
+                    try {
+                        var rows = table.getRows();
+                        if (rows.length > 0)
+                            table.scrollToRow(rows[rows.length - 1], "bottom", false);
+                    } catch(e) {}
+                    try {
+                        var last = gridApi.getDisplayedRowCount() - 1;
+                        gridApi.ensureIndexVisible(last, 'bottom');
+                    } catch(e) {}
+                    isRendering = false;
+                });
             }
-        };
+        } catch(e) {
+            console.error("appendGridData error:", e);
+        }
+    };
 
-        // ----------------------------------------------------
-        // UI 이벤트 핸들러 복구
-        // ----------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════
+    // Load Control Panel
+    // ═══════════════════════════════════════════════════════════════
+    var currentRate = 50;       // 현재 설정 속도 (건/초), -1 = Chaos
+    var isStreaming  = false;
 
-        // 엑셀 다운로드 버튼 클릭 이벤트
-        document.getElementById("download-xlsx").addEventListener("click", function(){
-            table.download("xlsx", "WebView2_Data.xlsx", {sheetName:"My Data"});
-            // AG Grid 엑셀 추출: gridApi.exportDataAsExcel() 필요시 추가 (AG Grid Enterprise 필요)
-            
-            if(window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage("Excel 다운로드가 실행되었습니다.");
+    var slider       = document.getElementById("rate-slider");
+    var rateDisplay  = document.getElementById("rate-display");
+    var statusBadge  = document.getElementById("status-badge");
+    var statusText   = document.getElementById("status-text");
+    var startBtn     = document.getElementById("start-btn");
+    var stopBtn      = document.getElementById("stop-btn");
+    var presetBtns   = document.querySelectorAll(".preset-btn");
+
+    function setActivePreset(rate) {
+        presetBtns.forEach(function(b) { b.classList.remove("active"); });
+        var btn = document.querySelector(".preset-btn[data-rate='" + rate + "']");
+        if (btn) btn.classList.add("active");
+    }
+
+    function applyRate(rate) {
+        currentRate = rate;
+        if (rate === -1) {
+            rateDisplay.textContent = "Chaos (10~1000/s)";
+            slider.value = 1000; // 슬라이더는 최대치 표시
+        } else {
+            rateDisplay.textContent = rate.toLocaleString() + " 건/초";
+            slider.value = Math.min(rate, 2000);
+        }
+        setActivePreset(rate);
+
+        // 실행 중이면 즉시 속도 변경 (스레드 재시작 없음)
+        if (isStreaming && window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage("STREAM_RATE:" + rate);
+        }
+    }
+
+    // 프리셋 버튼 클릭
+    presetBtns.forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            applyRate(parseInt(btn.dataset.rate));
+        });
+    });
+
+    // 슬라이더 입력
+    slider.addEventListener("input", function() {
+        var v = parseInt(slider.value);
+        currentRate = v;
+        rateDisplay.textContent = v.toLocaleString() + " 건/초";
+        setActivePreset(v); // 정확히 일치하는 프리셋이 없으면 모두 비활성
+        if (isStreaming && window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage("STREAM_RATE:" + v);
+        }
+    });
+
+    // Start 버튼
+    startBtn.addEventListener("click", function() {
+        if (!window.chrome || !window.chrome.webview) return;
+        isStreaming = true;
+        window.chrome.webview.postMessage("STREAM_START:" + currentRate);
+
+        statusBadge.className = "status-badge running";
+        statusText.textContent = "스트리밍 중";
+        startBtn.disabled = true; startBtn.style.opacity = "0.5"; startBtn.style.cursor = "default";
+        stopBtn.disabled  = false; stopBtn.style.opacity  = "1";  stopBtn.style.cursor  = "pointer";
+    });
+
+    // Stop 버튼
+    stopBtn.addEventListener("click", function() {
+        if (!window.chrome || !window.chrome.webview) return;
+        isStreaming = false;
+        window.chrome.webview.postMessage("STREAM_STOP");
+
+        statusBadge.className = "status-badge stopped";
+        statusText.textContent = "대기 중";
+        startBtn.disabled = false; startBtn.style.opacity = "1";   startBtn.style.cursor = "pointer";
+        stopBtn.disabled  = true;  stopBtn.style.opacity  = "0.5"; stopBtn.style.cursor  = "default";
+    });
+
+    // Excel 다운로드
+    document.getElementById("download-xlsx").addEventListener("click", function(){
+        table.download("xlsx", "WebView2_Data.xlsx", { sheetName: "Stream Data" });
+        if (window.chrome && window.chrome.webview)
+            window.chrome.webview.postMessage("Excel 다운로드가 실행되었습니다.");
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // WebView2 메시지 수신 등록 (READY_FOR_DATA 시 자동 시작 안 함)
+    // ═══════════════════════════════════════════════════════════════
+    window.addEventListener("DOMContentLoaded", function() {
+        setTimeout(function() {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.addEventListener('message', function(event) {
+                    try {
+                        if (Array.isArray(event.data)) {
+                            appendGridData(event.data);
+                        }
+                    } catch(e) {}
+                });
+                window.chrome.webview.postMessage("READY_FOR_DATA");
             }
-        });
-
-        // 수동 추가 버튼
-        document.getElementById("add-row-btn").addEventListener("click", function(){
-            var count = parseInt(document.getElementById("stream-count").value) || 10;
-            if(window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage("ADD_MORE_DATA:" + count);
-            }
-        });
-
-        // 실시간 스트리밍 버튼 (초당 10~100건 랜덤)
-        var streamTimeout = null;
-        var streamBtn = document.getElementById("stream-toggle-btn");
-        streamBtn.addEventListener("click", function(){
-            if (streamTimeout) {
-                clearTimeout(streamTimeout);
-                streamTimeout = null;
-                streamBtn.innerHTML = "▶️ Start";
-                streamBtn.classList.remove("btn-danger");
-                streamBtn.classList.add("btn-blue");
-            } else {
-                streamBtn.innerHTML = "⏹️ Stop";
-                streamBtn.classList.remove("btn-blue");
-                streamBtn.classList.add("btn-danger");
-                
-                function nextTick() {
-                    // 매 틱마다 초당 10건 ~ 100건 사이의 랜덤한 목표 속도를 설정합니다.
-                    var randomRate = Math.floor(Math.random() * (100 - 10 + 1)) + 10;
-                    
-                    // 해당 속도에 맞춰 이번 데이터 1~소수 개를 가져오기 위한 지연 시간 계산
-                    var tickInterval = Math.max(16, Math.floor(1000 / randomRate));
-                    var itemsPerTick = Math.max(1, Math.ceil(randomRate * tickInterval / 1000));
-
-                    if(window.chrome && window.chrome.webview) {
-                        window.chrome.webview.postMessage("ADD_MORE_DATA:" + itemsPerTick);
-                    }
-                    
-                    // 계산된 가변 인터벌 뒤에 다음 데이터를 요청 (유동적인 흐름 형성)
-                    streamTimeout = setTimeout(nextTick, tickInterval);
-                }
-                
-                // 첫 틱 바로 실행
-                nextTick();
-            }
-        });
-
-        // 페이지 준비 완료 알림
-        window.addEventListener("DOMContentLoaded", function() {
-            setTimeout(() => {
-                if(window.chrome && window.chrome.webview) {
-                    window.chrome.webview.addEventListener('message', function(event) {
-                        try {
-                            if (Array.isArray(event.data)) {
-                                appendGridData(event.data);
-                            }
-                        } catch(e) {}
-                    });
-                    window.chrome.webview.postMessage("READY_FOR_DATA");
-                }
-            }, 500);
-        });
+        }, 500);
+    });
     </script>
 </body>
 </html>

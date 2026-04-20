@@ -1,16 +1,12 @@
-// ============================================================================
-// WebView2Dlg.h - CWebView2Host를 사용하는 MFC 다이얼로그 예제
-//
-// 다른 다이얼로그에서 WebView2를 사용하는 방법:
-//   1. #include "WebView2Host.h" 추가
-//   2. CWebView2Host m_wv2; 멤버 선언
-//   3. 필요하면 IWebView2MessageHandler 구현
-//   4. 아래 패턴 그대로 복사
-// ============================================================================
 #pragma once
 
 #include "resource.h"
 #include "WebView2.h"
+
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <queue>
 
 // Custom message for deferred WebView2 initialization
 #define WM_INIT_WEBVIEW2 (WM_USER + 100)
@@ -32,13 +28,13 @@ protected:
     afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
     afx_msg void OnDestroy();
     afx_msg LRESULT OnInitWebView2(WPARAM wParam, LPARAM lParam);
+    afx_msg void OnTimer(UINT_PTR nIDEvent);
 
     // 모달리스 다이얼로그 필수 오버라이드
-    virtual void OnCancel() override;     // ESC 키 처리
-    virtual void OnOK() override;         // Enter 키 처리
-    virtual void PostNcDestroy() override; // 메모리 해제
+    virtual void OnCancel() override;
+    virtual void OnOK() override;
+    virtual void PostNcDestroy() override;
 
-    // 웹 메시지 수신 핸들러 (콜백으로 연결됨)
     void OnWebMessage(const std::wstring& message);
 
     DECLARE_MESSAGE_MAP()
@@ -46,7 +42,23 @@ protected:
 private:
     CWebView2 m_wv2;
 
-    CString GetInstallPathFromRegistry(bool const searchWebView=true);
-    CString GetInstallPathFromDisk(bool const searchWebView=true);
-    void GenerateAndSendLargeData(const CString& message);
+    // ── Worker Thread (데이터 생성 전담) ────────────────────────────────────
+    std::thread              m_workerThread;
+    std::atomic<bool>        m_bRunWorker  { false };
+    std::atomic<int>         m_nRatePerSec { 50 };    // -1 = Chaos 모드
+    std::atomic<int>         m_nDataCount  { 0 };     // 총 생성 행 수 (ID 채번)
+
+    // ── UI Thread 전송용 큐 ─────────────────────────────────────────────────
+    std::mutex               m_queueMutex;
+    std::queue<std::wstring> m_dataQueue;
+
+    // ── Timer ───────────────────────────────────────────────────────────────
+    static constexpr UINT_PTR BATCH_TIMER_ID = 1;
+    static constexpr UINT     BATCH_TIMER_MS = 16; // ~60fps
+
+    // ── 메서드 ──────────────────────────────────────────────────────────────
+    void         StartDataWorker(int ratePerSec);
+    void         StopDataWorker();
+    void         WorkerProc();
+    std::wstring GenerateRow(int id);
 };

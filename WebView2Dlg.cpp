@@ -1,36 +1,37 @@
 // ============================================================================
 // WebView2Dlg.cpp
 //
-// CWebView2Host 사용 예제 - 다른 다이얼로그에서도 동일한 패턴으로 사용
+// [아키텍처: C++ Push 방식]
+//   - Worker Thread: m_nRatePerSec 속도에 맞춰 JSON 행을 m_dataQueue에 push
+//   - UI Thread (OnTimer): 16ms마다 큐 전체를 drain → 배치 JSON → ExecuteScript
+//   - JS는 요청(Pull) 없이 순수하게 수신/렌더링만 담당
 //
-// [최소 패턴 요약]
-//   OnInitDialog:  m_wv2.Create(this, CRect(0,0,0,0));
-//                  PostMessage(WM_INIT_WEBVIEW2);
-//   OnInitWebView2: m_wv2.InitWebView2();
-//                   m_wv2.Navigate(L"https://...");  // 또는 NavigateToString
-//   OnSize:         m_wv2.Resize(cx, cy);
-//   OnDestroy:      m_wv2.Close();
+// 메시지 프로토콜 (JS → C++):
+//   STREAM_START:{rate}  → 워커 스레드 (재)시작, rate=-1은 Chaos
+//   STREAM_STOP          → 워커 스레드 정지
+//   STREAM_RATE:{rate}   → 실행 중 속도 즉시 변경 (스레드 재시작 없음)
 // ============================================================================
 #include "pch.h"
 #include "WebView2App.h"
 #include "WebView2Dlg.h"
 
+#include <chrono>
+#include <random>
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
-// ============================================================================
-// Message Map
-// ============================================================================
 BEGIN_MESSAGE_MAP(CWebView2Dlg, CDialogEx)
     ON_WM_SIZE()
     ON_WM_GETMINMAXINFO()
     ON_WM_DESTROY()
+    ON_WM_TIMER()
     ON_MESSAGE(WM_INIT_WEBVIEW2, &CWebView2Dlg::OnInitWebView2)
 END_MESSAGE_MAP()
 
 // ============================================================================
-// Constructor
+// Constructor / DoDataExchange
 // ============================================================================
 CWebView2Dlg::CWebView2Dlg(CWnd* pParent /*=nullptr*/)
     : CDialogEx(IDD_MAIN_DIALOG, pParent)
@@ -53,7 +54,6 @@ BOOL CWebView2Dlg::OnInitDialog()
     SetWindowPos(nullptr, 0, 0, 1200, 800, SWP_NOMOVE | SWP_NOZORDER);
     CenterWindow();
 
-    // ★ WebView2 child 윈도우 생성 (WebView2 초기화는 PostMessage로 지연)
     CRect rcClient;
     GetClientRect(&rcClient);
     m_wv2.Create(rcClient, this, 10001);
@@ -61,18 +61,7 @@ BOOL CWebView2Dlg::OnInitDialog()
         OnWebMessage(msg);
     });
 
-    CString installPath = GetInstallPathFromRegistry();   // check registry for WebView2
-    if (installPath.IsEmpty())
-        installPath = GetInstallPathFromDisk();         // check disk for WebView2
-    if (installPath.IsEmpty())
-        installPath = GetInstallPathFromRegistry(false);// check registry for Edge
-
-    BOOL bWebView2Installed = (installPath.GetLength() > 0);
-
-
-    // Dialog가 완전히 그려진 후 WebView2 초기화
     PostMessage(WM_INIT_WEBVIEW2);
-
     return TRUE;
 }
 
@@ -81,102 +70,152 @@ BOOL CWebView2Dlg::OnInitDialog()
 // ============================================================================
 LRESULT CWebView2Dlg::OnInitWebView2(WPARAM, LPARAM)
 {
-    // ★ WebView2 초기화 → 완료 후 페이지 로드
     m_wv2.InitWebView2();
-
-    // InitWebView2는 비동기이므로
-    // 완료 직후 내부에서 Navigate가 실행될 수 있도록
-    // 초기 URL(가상 호스트)을 설정합니다.
     m_wv2.SetInitialUrl(L"http://app.local/index.html");
-
     return 0;
 }
 
 // ============================================================================
-// OnWebMessage - 웹→호스트 메시지 수신 (IWebView2MessageHandler 구현)
+// OnWebMessage - 웹→호스트 메시지 수신
 // ============================================================================
 void CWebView2Dlg::OnWebMessage(const std::wstring& message)
 {
-    CString strMsg;
-    strMsg.Format(_T("[WebView2→Host] %s\n"), message.c_str());
-    OutputDebugString(strMsg);
-
-    // 웹 페이지 준비 신호 또는 추가 데이터 요청 시
-    if (message.find(L"READY_FOR_DATA") == 0 || message.find(L"ADD_MORE_DATA") == 0)
+    if (message.rfind(L"STREAM_START:", 0) == 0)
     {
-        GenerateAndSendLargeData(message.c_str());
+        int rate = _wtoi(message.c_str() + wcslen(L"STREAM_START:"));
+        StopDataWorker();
+        StartDataWorker(rate);
     }
-}
-
-void CWebView2Dlg::GenerateAndSendLargeData(const CString& message)
-{
-    // "ADD_MORE_DATA:100" 형태에서 숫자 파싱
-    int targetCount = 10;
-    if (message.Find(_T("ADD_MORE_DATA:")) == 0) {
-        int colonIdx = message.Find(_T(':'));
-        if (colonIdx != -1) {
-            _stscanf_s(message.GetString() + colonIdx + 1, _T("%d"), &targetCount);
-        }
-    } else if (message.Find(_T("READY_FOR_DATA")) == 0) {
-        targetCount = 100; // 초기 로드 시 100개
+    else if (message == L"STREAM_STOP")
+    {
+        StopDataWorker();
     }
-
-    // [핵심 해결책] 
-    // WebView2의 ExecuteScript는 내부적으로 스크립트 문자열이 약 6~8KB(데이터 100개 언저리)를 넘어가면
-    // 즉시 실행하지 않고 Low-Priority 큐에 지연 보관(Defer)하는 엔진 내부의 버그/최적화 특성이 있습니다.
-    // 1000개를 요청하더라도 안전한 크기(예: 50개 단위)로 작게 쪼개어(Chunking) 연속으로 전송하면
-    // 이 지연 큐잉 알고리즘을 완벽하게 우회하여 즉각적으로 화면에 렌더링될 수 있습니다.
-    static int s_dataCount = 0;
-    if (message.Find(_T("READY_FOR_DATA")) == 0) {
-        s_dataCount = 0; // 초기화
-    }
-
-    int CHUNK_SIZE = 50;
-    int sentCount = 0;
-
-    while (sentCount < targetCount) {
-        int currentChunk = min(CHUNK_SIZE, targetCount - sentCount);
-        
-        CString jsonStr = _T("[");
-        for (int i = 1; i <= currentChunk; i++)
-        {
-            s_dataCount++;
-            CString row;
-            row.Format(_T("{\"id\":%d, \"name\":\"MFC C++ User %d\", \"age\":%d, \"col\":\"%s\"}"), 
-                       s_dataCount, s_dataCount, 20 + (s_dataCount % 40), (s_dataCount % 2 == 0) ? _T("blue") : _T("red"));
-            
-            jsonStr += row;
-            if (i < currentChunk) jsonStr += _T(",");
-        }
-        jsonStr += _T("]");
-
-        CString script;
-        if (message.Find(_T("READY_FOR_DATA")) == 0 && sentCount == 0) {
-            script = _T("window.loadGridData(") + jsonStr + _T(");");
-        } else {
-            script = _T("window.appendGridData(") + jsonStr + _T(");");
-        }
-
-        m_wv2.ExecuteScript(script.GetString());
-        
-        sentCount += currentChunk;
+    else if (message.rfind(L"STREAM_RATE:", 0) == 0)
+    {
+        int rate = _wtoi(message.c_str() + wcslen(L"STREAM_RATE:"));
+        m_nRatePerSec.store(rate);
     }
 }
 
 // ============================================================================
-// OnSize
+// StartDataWorker / StopDataWorker
+// ============================================================================
+void CWebView2Dlg::StartDataWorker(int ratePerSec)
+{
+    m_nRatePerSec.store(ratePerSec);
+    m_bRunWorker.store(true);
+    m_workerThread = std::thread([this]() { WorkerProc(); });
+    SetTimer(BATCH_TIMER_ID, BATCH_TIMER_MS, nullptr);
+}
+
+void CWebView2Dlg::StopDataWorker()
+{
+    if (!m_bRunWorker.load()) return;
+
+    m_bRunWorker.store(false);
+    if (m_workerThread.joinable())
+        m_workerThread.join();
+
+    KillTimer(BATCH_TIMER_ID);
+
+    std::lock_guard<std::mutex> lock(m_queueMutex);
+    while (!m_dataQueue.empty())
+        m_dataQueue.pop();
+}
+
+// ============================================================================
+// WorkerProc - 백그라운드 데이터 생성 루프
+// 주의: COM/WebView2 객체 절대 접근 금지. 큐에만 push.
+// ============================================================================
+void CWebView2Dlg::WorkerProc()
+{
+    std::mt19937 rng(std::random_device{}());
+    std::uniform_int_distribution<int> chaosDist(10, 1000);
+
+    while (m_bRunWorker.load())
+    {
+        int rate = m_nRatePerSec.load();
+        if (rate == -1)
+            rate = chaosDist(rng);
+
+        int sleepMs = max(1, 1000 / rate);
+
+        int id = ++m_nDataCount;
+        {
+            std::lock_guard<std::mutex> lock(m_queueMutex);
+            m_dataQueue.push(GenerateRow(id));
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+    }
+}
+
+// ============================================================================
+// GenerateRow - 단일 JSON 객체 문자열 생성
+// ============================================================================
+std::wstring CWebView2Dlg::GenerateRow(int id)
+{
+    static const wchar_t* colors[] = {
+        L"red", L"blue", L"green", L"orange", L"purple",
+        L"cyan", L"magenta", L"yellow", L"white", L"coral"
+    };
+    static const wchar_t* genders[] = { L"male", L"female" };
+
+    wchar_t buf[256];
+    swprintf_s(buf, _countof(buf),
+        L"{\"id\":%d,\"name\":\"Stream User %d\","
+        L"\"age\":%d,\"gender\":\"%s\","
+        L"\"height\":%.2f,\"col\":\"%s\","
+        L"\"dob\":\"2024-01-01\"}",
+        id, id,
+        20 + (id % 60), genders[id % 2],
+        1.5 + (id % 50) * 0.01, colors[id % 10]);
+
+    return std::wstring(buf);
+}
+
+// ============================================================================
+// OnTimer - UI 스레드 배치 전송 (~60fps)
+// ============================================================================
+void CWebView2Dlg::OnTimer(UINT_PTR nIDEvent)
+{
+    if (nIDEvent == BATCH_TIMER_ID)
+    {
+        std::queue<std::wstring> batch;
+        {
+            std::lock_guard<std::mutex> lock(m_queueMutex);
+            std::swap(batch, m_dataQueue); // O(1) swap으로 락 시간 최소화
+        }
+
+        if (!batch.empty())
+        {
+            std::wstring json = L"[";
+            bool first = true;
+            while (!batch.empty())
+            {
+                if (!first) json += L",";
+                json += batch.front();
+                batch.pop();
+                first = false;
+            }
+            json += L"]";
+            m_wv2.ExecuteScript((L"window.appendGridData(" + json + L");").c_str());
+        }
+        return;
+    }
+    CDialogEx::OnTimer(nIDEvent);
+}
+
+// ============================================================================
+// OnSize / OnGetMinMaxInfo / OnDestroy
 // ============================================================================
 void CWebView2Dlg::OnSize(UINT nType, int cx, int cy)
 {
     CDialogEx::OnSize(nType, cx, cy);
-    // ★ WebView2 리사이즈
     if (m_wv2.GetSafeHwnd())
         m_wv2.MoveWindow(0, 0, cx, cy);
 }
 
-// ============================================================================
-// OnGetMinMaxInfo
-// ============================================================================
 void CWebView2Dlg::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
     lpMMI->ptMinTrackSize.x = 640;
@@ -184,12 +223,9 @@ void CWebView2Dlg::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
     CDialogEx::OnGetMinMaxInfo(lpMMI);
 }
 
-// ============================================================================
-// OnDestroy
-// ============================================================================
 void CWebView2Dlg::OnDestroy()
 {
-    // ★ 한 줄로 WebView2 정리
+    StopDataWorker();
     m_wv2.Close();
     CDialogEx::OnDestroy();
 }
@@ -197,130 +233,13 @@ void CWebView2Dlg::OnDestroy()
 // ============================================================================
 // 모달리스 다이얼로그 라이프사이클 관리
 // ============================================================================
-void CWebView2Dlg::OnCancel()
-{
-    DestroyWindow();
-}
-
-void CWebView2Dlg::OnOK()
-{
-    DestroyWindow();
-}
+void CWebView2Dlg::OnCancel() { DestroyWindow(); }
+void CWebView2Dlg::OnOK()     { DestroyWindow(); }
 
 void CWebView2Dlg::PostNcDestroy()
 {
     CDialogEx::PostNcDestroy();
-    
-    // 메인 윈도우가 파괴되면 앱 종료
     AfxGetApp()->m_pMainWnd = nullptr;
     PostQuitMessage(0);
-    
-    // InitInstance에서 new CWebView2Dlg()로 생성한 인스턴스 메모리 해제
     delete this;
-}
-
-
-
-CString CWebView2Dlg::GetInstallPathFromRegistry(bool const searchWebView)
-{
-    CString path;
-
-    HKEY handle = nullptr;
-
-    LSTATUS result = ERROR_FILE_NOT_FOUND;
-
-    if (searchWebView)
-    {
-        result = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-            L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Microsoft EdgeWebView",
-            0,
-            KEY_READ,
-            &handle);
-
-        if (result != ERROR_SUCCESS)
-            result = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-                L"SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Microsoft EdgeWebView",
-                0,
-                KEY_READ,
-                &handle);
-    }
-    else
-    {
-        result = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-            L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Microsoft Edge",
-            0,
-            KEY_READ,
-            &handle);
-
-        if (result != ERROR_SUCCESS)
-            result = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-                L"SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Microsoft Edge",
-                0,
-                KEY_READ,
-                &handle);
-    }
-
-    if (result == ERROR_SUCCESS)
-    {
-        TCHAR buffer[MAX_PATH + 1]{ 0 };
-        DWORD type = REG_SZ;
-        DWORD size = MAX_PATH;
-        result = RegQueryValueEx(handle, L"InstallLocation", 0, &type, reinterpret_cast<LPBYTE>(buffer), &size);
-
-        if (result == ERROR_SUCCESS)
-            path += CString{ buffer };
-
-        TCHAR version[100]{ 0 };
-        size = 100;
-        result = RegQueryValueEx(handle, L"Version", 0, &type, reinterpret_cast<LPBYTE>(version), &size);
-        if (result == ERROR_SUCCESS)
-        {
-            if (path.GetAt(path.GetLength() - 1) != '\\')
-                path += "\\";
-            path += CString{ version };
-        }
-        else
-            path.Empty();
-
-        RegCloseKey(handle);
-    }
-
-    return path;
-}
-
-CString CWebView2Dlg::GetInstallPathFromDisk(bool const searchWebView)
-{
-    CString path =
-        searchWebView ?
-        CA2W("c:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\") :
-        CA2W("c:\\Program Files (x86)\\Microsoft\\Edge\\Application\\");
-    CString pattern = path;
-    pattern += "*";
-
-
-    WIN32_FIND_DATA ffd{ 0 };
-    HANDLE hFind = FindFirstFile(pattern, &ffd);
-    if (hFind == INVALID_HANDLE_VALUE)
-    {
-        /* [[maybe_unused]] */DWORD error = ::GetLastError();
-        return {};
-    }
-
-    do
-    {
-        if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-        {
-            CString name{ ffd.cFileName };
-            int a, b, c, d;
-            if (4 == swscanf_s(ffd.cFileName, L"%d.%d.%d.%d", &a, &b, &c, &d))
-            {
-                FindClose(hFind);
-                return path + name;
-            }
-        }
-    } while (FindNextFile(hFind, &ffd) != 0);
-
-    FindClose(hFind);
-
-    return {};
 }
