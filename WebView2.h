@@ -58,6 +58,7 @@ public:
     HRESULT Navigate(const std::wstring& url);
     HRESULT NavigateToString(const std::wstring& html);
     HRESULT ExecuteScript(const std::wstring& script);
+    HRESULT PostWebMessageAsJson(const std::wstring& jsonStr);   
 
     // 초기화 끝나기 전이라도 로드할 페이지 예약
     void SetInitialHtml(const std::wstring& html) { m_initialHtml = html; }
@@ -89,5 +90,5 @@ private:
     bool m_isInitializing;
 
     std::function<void()> m_onInitComplete;
-    std::function<void(const std::wstring&)> m_onWebMessage;
+    std::function<void(const std::wstring&)> m_onWebMessage;   
 };

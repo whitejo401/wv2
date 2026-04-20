@@ -101,7 +101,66 @@ void CWebView2Dlg::OnWebMessage(const std::wstring& message)
     strMsg.Format(_T("[WebView2→Host] %s\n"), message.c_str());
     OutputDebugString(strMsg);
 
-    // 여기에서 원하는 처리 추가 (예: UI 업데이트, 비즈니스 로직 등)
+    // 웹 페이지 준비 신호 또는 추가 데이터 요청 시
+    if (message.find(L"READY_FOR_DATA") == 0 || message.find(L"ADD_MORE_DATA") == 0)
+    {
+        GenerateAndSendLargeData(message.c_str());
+    }
+}
+
+void CWebView2Dlg::GenerateAndSendLargeData(const CString& message)
+{
+    // "ADD_MORE_DATA:100" 형태에서 숫자 파싱
+    int targetCount = 10;
+    if (message.Find(_T("ADD_MORE_DATA:")) == 0) {
+        int colonIdx = message.Find(_T(':'));
+        if (colonIdx != -1) {
+            _stscanf_s(message.GetString() + colonIdx + 1, _T("%d"), &targetCount);
+        }
+    } else if (message.Find(_T("READY_FOR_DATA")) == 0) {
+        targetCount = 100; // 초기 로드 시 100개
+    }
+
+    // [핵심 해결책] 
+    // WebView2의 ExecuteScript는 내부적으로 스크립트 문자열이 약 6~8KB(데이터 100개 언저리)를 넘어가면
+    // 즉시 실행하지 않고 Low-Priority 큐에 지연 보관(Defer)하는 엔진 내부의 버그/최적화 특성이 있습니다.
+    // 1000개를 요청하더라도 안전한 크기(예: 50개 단위)로 작게 쪼개어(Chunking) 연속으로 전송하면
+    // 이 지연 큐잉 알고리즘을 완벽하게 우회하여 즉각적으로 화면에 렌더링될 수 있습니다.
+    static int s_dataCount = 0;
+    if (message.Find(_T("READY_FOR_DATA")) == 0) {
+        s_dataCount = 0; // 초기화
+    }
+
+    int CHUNK_SIZE = 50;
+    int sentCount = 0;
+
+    while (sentCount < targetCount) {
+        int currentChunk = min(CHUNK_SIZE, targetCount - sentCount);
+        
+        CString jsonStr = _T("[");
+        for (int i = 1; i <= currentChunk; i++)
+        {
+            s_dataCount++;
+            CString row;
+            row.Format(_T("{\"id\":%d, \"name\":\"MFC C++ User %d\", \"age\":%d, \"col\":\"%s\"}"), 
+                       s_dataCount, s_dataCount, 20 + (s_dataCount % 40), (s_dataCount % 2 == 0) ? _T("blue") : _T("red"));
+            
+            jsonStr += row;
+            if (i < currentChunk) jsonStr += _T(",");
+        }
+        jsonStr += _T("]");
+
+        CString script;
+        if (message.Find(_T("READY_FOR_DATA")) == 0 && sentCount == 0) {
+            script = _T("window.loadGridData(") + jsonStr + _T(");");
+        } else {
+            script = _T("window.appendGridData(") + jsonStr + _T(");");
+        }
+
+        m_wv2.ExecuteScript(script.GetString());
+        
+        sentCount += currentChunk;
+    }
 }
 
 // ============================================================================

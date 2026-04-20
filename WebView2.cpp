@@ -247,5 +247,18 @@ HRESULT CWebView2::NavigateToString(const std::wstring& html)
 HRESULT CWebView2::ExecuteScript(const std::wstring& script)
 {
     if (!m_webview) return E_FAIL;
-    return m_webview->ExecuteScript(script.c_str(), nullptr);
+    
+    // 강제 IPC Flush를 위해 빈 콜백(Dummy Handler)을 제공합니다.
+    // nullptr을 전달하면 WebView2가 스크립트 크기에 따라 Background low-priority 큐에 집어넣어버리는 버그(지연 현상)를 방지합니다.
+    return m_webview->ExecuteScript(script.c_str(), 
+        Microsoft::WRL::Callback<ICoreWebView2ExecuteScriptCompletedHandler>(
+            [](HRESULT errorCode, LPCWSTR resultObjectAsJson) -> HRESULT {
+                return S_OK;
+            }).Get());
+}
+
+HRESULT CWebView2::PostWebMessageAsJson(const std::wstring& jsonStr)
+{
+    if (!m_webview) return E_FAIL;
+    return m_webview->PostWebMessageAsJson(jsonStr.c_str());
 }

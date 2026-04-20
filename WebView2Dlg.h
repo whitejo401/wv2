@@ -48,4 +48,5 @@ private:
 
     CString GetInstallPathFromRegistry(bool const searchWebView=true);
     CString GetInstallPathFromDisk(bool const searchWebView=true);
+    void GenerateAndSendLargeData(const CString& message);
 };
