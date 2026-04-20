@@ -20,11 +20,16 @@
 #include <afxmt.h>          // CCriticalSection, CSingleLock
 
 // Shell API (SHGetFolderPath)
-#include <ShlObj.h>
+#include <Shlobj.h>
 
 // COM / WRL
 #include <wrl.h>
 #include <wil/com.h>
+
+// C++ STL (WebView2 인프라 레이어 사용: EnvManager, CWebView2 래퍼)
+#include <string>
+#include <functional>
+#include <vector>
 
 // WebView2
 #include "WebView2.h"

@@ -67,6 +67,8 @@ set(SOURCES
     WebView2App.cpp
     WebView2.cpp
     WebView2Dlg.cpp
+    DataStreamManager.cpp
+    WebView2EnvManager.cpp
 )
 
 set(HEADERS
@@ -76,6 +78,8 @@ set(HEADERS
     WebView2App.h
     WebView2.h
     WebView2Dlg.h
+    DataStreamManager.h
+    WebView2EnvManager.h
 )
 
 set(RESOURCES
