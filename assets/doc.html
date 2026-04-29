@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebView2 Document View</title>
+    <!-- Marked.js for markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            line-height: 1.6;
+            padding: 40px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #252526;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        h1, h2, h3 {
+            color: #569cd6;
+        }
+        a { color: #4fc1ff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code {
+            background: #3c3c3c;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        pre {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid #3c3c3c;
+        }
+        pre code { background: transparent; padding: 0; }
+    </style>
+</head>
+<body>
+    <div class="container" id="content"></div>
+
+    <script type="text/markdown" id="md-source">
+# WebView2 Document View Sample
+
+이 문서는 **WebView2**를 통해 렌더링된 단순 문서 뷰(Type 1)입니다. 
+
+## WebView2 연동 구조
+- **Modeless Dialog**: 기본 MFC 메시지 펌프를 활용하여 WebView2와 충돌 없이 동작합니다.
+- **가상 호스트 매핑**: `--disable-web-security` 없이 로컬 에셋(assets) 폴더를 `http://app.local` 로 매핑하여 사용합니다.
+- **C++ ↔ JS 비동기 통신**: `window.chrome.webview.postMessage`를 사용하여 양방향 데이터를 교환합니다.
+
+## 개발 가이드
+1. C++ 코드에서 `Navigate("http://app.local/doc.html")` 형태로 뷰를 로드합니다.
+2. 이 HTML 파일에서는 `marked.js`를 사용해 Markdown을 파싱하고 화면에 그려줍니다.
+3. 데이터 스트리밍은 `grid.html` 뷰에서 주로 처리합니다.
+    </script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const mdSource = document.getElementById('md-source').textContent;
+            document.getElementById('content').innerHTML = marked.parse(mdSource);
+        });
+    </script>
+</body>
+</html>

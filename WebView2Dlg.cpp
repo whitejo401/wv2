@@ -28,8 +28,10 @@ END_MESSAGE_MAP()
 // ============================================================================
 // Constructor / DoDataExchange
 // ============================================================================
-CWebView2Dlg::CWebView2Dlg(CWnd* pParent /*=nullptr*/)
+CWebView2Dlg::CWebView2Dlg(int nType, int nGridSubType, CWnd* pParent /*=nullptr*/)
     : CDialogEx(IDD_MAIN_DIALOG, pParent)
+    , m_nType(nType)
+    , m_nGridSubType(nGridSubType)
 {
 }
 
@@ -66,7 +68,19 @@ BOOL CWebView2Dlg::OnInitDialog()
 LRESULT CWebView2Dlg::OnInitWebView2(WPARAM, LPARAM)
 {
     m_wv2.InitWebView2();
-    m_wv2.SetInitialUrl(L"http://app.local/index.html");
+    
+    CString url;
+    if (m_nType == 1) {
+        url = _T("http://app.local/doc.html");
+    } else {
+        if (m_nGridSubType == 0) {
+            url = _T("http://app.local/grid.html?type=tabulator");
+        } else {
+            url = _T("http://app.local/grid.html?type=aggrid");
+        }
+    }
+    
+    m_wv2.SetInitialUrl(url.GetString());
     return 0;
 }
 

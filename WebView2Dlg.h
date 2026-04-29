@@ -9,7 +9,7 @@
 class CWebView2Dlg : public CDialogEx
 {
 public:
-    CWebView2Dlg(CWnd* pParent = nullptr);
+    CWebView2Dlg(int nType = 1, int nGridSubType = 0, CWnd* pParent = nullptr);
 
 #ifdef AFX_DESIGN_TIME
     enum { IDD = IDD_MAIN_DIALOG };
@@ -36,6 +36,9 @@ protected:
 private:
     CWebView2           m_wv2;
     CDataStreamManager  m_stream;   // Worker Thread 전담
+
+    int                 m_nType;
+    int                 m_nGridSubType;
 
     static constexpr UINT_PTR BATCH_TIMER_ID = 1;
     static constexpr UINT     BATCH_TIMER_MS = 16;  // ~60fps

@@ -313,11 +313,11 @@
 
             <!-- ── Grids ──────────────────────────────────────────── -->
             <div class="grids-wrapper">
-                <div class="grid-box">
+                <div class="grid-box" id="box-tabulator">
                     <div class="grid-title">Tabulator V5</div>
                     <div id="example-table"></div>
                 </div>
-                <div class="grid-box">
+                <div class="grid-box" id="box-aggrid">
                     <div class="grid-title">AG Grid</div>
                     <div id="myGrid" class="ag-theme-alpine-dark"></div>
                 </div>
@@ -334,6 +334,17 @@
     <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
 
     <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const gridType = urlParams.get('type') || 'tabulator';
+
+    window.addEventListener("DOMContentLoaded", function() {
+        if (gridType === 'aggrid') {
+            document.getElementById('box-tabulator').style.display = 'none';
+        } else {
+            document.getElementById('box-aggrid').style.display = 'none';
+        }
+    });
+
     // ═══════════════════════════════════════════════════════════════
     // 초기 샘플 데이터
     // ═══════════════════════════════════════════════════════════════
@@ -347,50 +358,55 @@
         { id: 7, name: "Steve Jobs",         age: 56,  gender: "male",   height: 1.88, col: "black",  dob: "1955-02-24" }
     ];
 
-    // ═══════════════════════════════════════════════════════════════
-    // Tabulator
-    // ═══════════════════════════════════════════════════════════════
-    var table = new Tabulator("#example-table", {
-        data: [...tableData],
-        height: 360,
-        layout: "fitColumns",
-        responsiveLayout: "hide",
-        history: false,
-        movableColumns: true,
-        columns: [
-            { title: "ID",     field: "id",     width: 70,  hozAlign: "center" },
-            { title: "Name",   field: "name",   width: 180, editor: "input" },
-            { title: "Age",    field: "age",    hozAlign: "left", formatter: "progress", editor: "number" },
-            { title: "Gender", field: "gender", editor: "list",
-              editorParams: { values: { "male": "Male", "female": "Female" } } },
-            { title: "Height", field: "height", hozAlign: "center", editor: "number" },
-            { title: "Color",  field: "col",    editor: "input" },
-            { title: "DOB",    field: "dob",    hozAlign: "center", editor: "date" }
-        ],
-    });
+    var table = null;
+    var gridApi = null;
 
-    // ═══════════════════════════════════════════════════════════════
-    // AG Grid
-    // ═══════════════════════════════════════════════════════════════
-    var agColumnDefs = [
-        { headerName: "ID",     field: "id",     width: 70 },
-        { headerName: "Name",   field: "name",   width: 180 },
-        { headerName: "Age",    field: "age",    width: 80 },
-        { headerName: "Gender", field: "gender", width: 90 },
-        { headerName: "Height", field: "height", width: 90 },
-        { headerName: "Color",  field: "col",    width: 90 },
-        { headerName: "DOB",    field: "dob",    width: 130 }
-    ];
-    var agGridOptions = {
-        theme: "legacy",
-        columnDefs: agColumnDefs,
-        rowData: [...tableData],
-        defaultColDef: { resizable: true, sortable: true },
-        asyncTransactionWaitMillis: 50,
-        animateRows: false
-    };
-    var agGridElement = document.querySelector('#myGrid');
-    var gridApi = agGrid.createGrid(agGridElement, agGridOptions);
+    if (gridType !== 'aggrid') {
+        // ═══════════════════════════════════════════════════════════════
+        // Tabulator
+        // ═══════════════════════════════════════════════════════════════
+        table = new Tabulator("#example-table", {
+            data: [...tableData],
+            height: 360,
+            layout: "fitColumns",
+            responsiveLayout: "hide",
+            history: false,
+            movableColumns: true,
+            columns: [
+                { title: "ID",     field: "id",     width: 70,  hozAlign: "center" },
+                { title: "Name",   field: "name",   width: 180, editor: "input" },
+                { title: "Age",    field: "age",    hozAlign: "left", formatter: "progress", editor: "number" },
+                { title: "Gender", field: "gender", editor: "list",
+                  editorParams: { values: { "male": "Male", "female": "Female" } } },
+                { title: "Height", field: "height", hozAlign: "center", editor: "number" },
+                { title: "Color",  field: "col",    editor: "input" },
+                { title: "DOB",    field: "dob",    hozAlign: "center", editor: "date" }
+            ],
+        });
+    } else {
+        // ═══════════════════════════════════════════════════════════════
+        // AG Grid
+        // ═══════════════════════════════════════════════════════════════
+        var agColumnDefs = [
+            { headerName: "ID",     field: "id",     width: 70 },
+            { headerName: "Name",   field: "name",   width: 180 },
+            { headerName: "Age",    field: "age",    width: 80 },
+            { headerName: "Gender", field: "gender", width: 90 },
+            { headerName: "Height", field: "height", width: 90 },
+            { headerName: "Color",  field: "col",    width: 90 },
+            { headerName: "DOB",    field: "dob",    width: 130 }
+        ];
+        var agGridOptions = {
+            theme: "legacy",
+            columnDefs: agColumnDefs,
+            rowData: [...tableData],
+            defaultColDef: { resizable: true, sortable: true },
+            asyncTransactionWaitMillis: 50,
+            animateRows: false
+        };
+        var agGridElement = document.querySelector('#myGrid');
+        gridApi = agGrid.createGrid(agGridElement, agGridOptions);
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // C++ → JS API:  window.loadGridData / window.appendGridData
@@ -398,8 +414,11 @@
     var totalRecv = 0;
 
     window.loadGridData = function(jsonData) {
-        table.setData(jsonData);
-        gridApi.setGridOption('rowData', jsonData);
+        if (gridType !== 'aggrid') {
+            table.setData(jsonData);
+        } else {
+            gridApi.setGridOption('rowData', jsonData);
+        }
         totalRecv = jsonData.length;
         document.getElementById("recv-count").textContent = totalRecv;
     };
@@ -408,11 +427,13 @@
 
     window.appendGridData = function(jsonData) {
         try {
-            // ★ Tabulator: Append 모드 고정 (하단에 쌓임)
-            table.addData(jsonData, false).catch(function(){});
-
-            // ★ AG Grid: 트랜잭션 방식 append
-            gridApi.applyTransaction({ add: jsonData });
+            if (gridType !== 'aggrid') {
+                // ★ Tabulator: Append 모드 고정 (하단에 쌓임)
+                table.addData(jsonData, false).catch(function(){});
+            } else {
+                // ★ AG Grid: 트랜잭션 방식 append
+                gridApi.applyTransaction({ add: jsonData });
+            }
 
             // 총 수신 카운터
             totalRecv += jsonData.length;
@@ -422,15 +443,18 @@
             if (!isRendering) {
                 isRendering = true;
                 requestAnimationFrame(function() {
-                    try {
-                        var rows = table.getRows();
-                        if (rows.length > 0)
-                            table.scrollToRow(rows[rows.length - 1], "bottom", false);
-                    } catch(e) {}
-                    try {
-                        var last = gridApi.getDisplayedRowCount() - 1;
-                        gridApi.ensureIndexVisible(last, 'bottom');
-                    } catch(e) {}
+                    if (gridType !== 'aggrid') {
+                        try {
+                            var rows = table.getRows();
+                            if (rows.length > 0)
+                                table.scrollToRow(rows[rows.length - 1], "bottom", false);
+                        } catch(e) {}
+                    } else {
+                        try {
+                            var last = gridApi.getDisplayedRowCount() - 1;
+                            gridApi.ensureIndexVisible(last, 'bottom');
+                        } catch(e) {}
+                    }
                     isRendering = false;
                 });
             }
@@ -520,9 +544,13 @@
 
     // Excel 다운로드
     document.getElementById("download-xlsx").addEventListener("click", function(){
-        table.download("xlsx", "WebView2_Data.xlsx", { sheetName: "Stream Data" });
+        if (gridType !== 'aggrid') {
+            table.download("xlsx", "WebView2_Data.xlsx", { sheetName: "Stream Data" });
+        } else {
+            gridApi.exportDataAsCsv({ fileName: "WebView2_Data.csv" });
+        }
         if (window.chrome && window.chrome.webview)
-            window.chrome.webview.postMessage("Excel 다운로드가 실행되었습니다.");
+            window.chrome.webview.postMessage("Excel/CSV 다운로드가 실행되었습니다.");
     });
 
     // ═══════════════════════════════════════════════════════════════
